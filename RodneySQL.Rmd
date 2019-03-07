@@ -1,0 +1,69 @@
+---
+title: "Untitled"
+author: "Solar Bulletin THE AMERICAN ASSOCIATION OF VARIABLE STAR OBSERVERS"
+date: "January 8, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(ggplot2)
+library(RMySQL)
+library(RSQLite)
+
+rm(list=ls())
+DAILY<-fread("http://sidc.be/silso/DATA/SN_d_tot_V2.0.csv",sep = ';')
+colnames(DAILY) <- c("Year","Month","Day", "Fdate","Spots", "Sd","Obs" ,"Defin"  )
+DAILY$Ymd <- as.Date(paste(DAILY$Year, DAILY$Month, DAILY$Day, sep = "-"))
+```
+
+## 1 Create import data into MySQL and create graph
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r echo=FALSE}
+mydb <- dbConnect(MySQL(),user='root',password='dJj12345',dbname="sidc",
+host='localhost')
+#
+# Drop Tables
+dbRemoveTable(mydb,"daily")
+
+dbWriteTable(mydb, "DAILY", DAILY, row.names = FALSE)
+dbSendStatement(mydb, "ALTER TABLE DAILY MODIFY COLUMN Ymd date")
+dbSendStatement(mydb, "ALTER TABLE DAILY MODIFY COLUMN Spots int")
+# Read data back into data.frame
+ROD <- dbGetQuery(mydb, "SELECT * FROM daily
+                  WHERE Year >=2000")
+ROD$Ymd <- as.Date(ROD$Ymd)
+dbDisconnect(mydb)
+# Create Plot of DAily Sunspots numbers.
+plot(ROD$Ymd,ROD$Spots,type="l",
+     main="Yearly Sunspot Counts: 2000 - 2018",
+     xlab="Years",ylab="Sunspot Counts")
+
+```
+\newpage
+
+## 2  Import data into SQLite database and create graph
+
+You can also embed plots, for example:
+
+```{r echo=FALSE}
+ 
+db <- dbConnect(SQLite(), dbname="Rhowe.sqlite3")
+dbListTables(db)
+DAILY$Ymd <- as.character(DAILY$Ymd)
+dbWriteTable(db, "DAILY", DAILY,overwrite=TRUE)
+HOWE <- dbGetQuery(db, "SELECT * FROM daily
+                  WHERE Year >=2018")
+dbDisconnect(db)
+
+plot(HOWE$Fdate,HOWE$Spots, type="l",
+     main="Daily Sunspot Count for 2018",
+     xlab="Number of Month/Year",ylab="Sunspot Counts")
+
+```
+# The End
